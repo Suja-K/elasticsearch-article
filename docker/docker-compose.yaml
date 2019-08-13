@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  db:
+    image: postgres
+    env_file: ./.env
+    ports:
+      - 5432:5432
+    volumes:
+      - ../database/data:/var/lib/postgresql/data
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.5.4
+    ports:
+      - "9200:9200"
+  kibana:
+    image: docker.elastic.co/kibana/kibana:6.5.4
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+  logstash:
+    image: docker.elastic.co/logstash/logstash-oss:7.0.0
+    volumes:
+      - ./logstash/conf.d:/etc/logstash/conf.d/
+      - ./logstash/driver/postgresql-42.2.6.jar:/usr/share/java/postgresql-42.2.6.jar
+    command: bash -c "/usr/share/logstash/bin/logstash -f /etc/logstash/conf.d/config.conf"
+  elasticsearch-tools:
+    build:
+      context: ./elasticsearch-tools
+    volumes:
+      - ./elasticsearch-tools/delete_obsolete.py:/var/src/delete_obsolete.py
+    command: "python /var/src/delete_obsolete.py"
+
+  backend:
+    build:
+      context: ./backend
+    env_file: ./.env
+    volumes:
+      - ../src:/src
+    command: bash -c "tail -f /dev/null"
